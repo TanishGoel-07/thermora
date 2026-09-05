@@ -1,0 +1,64 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    color-scheme: dark;
+  }
+  body {
+    font-family: "Inter", system-ui, sans-serif;
+    background: #080b10;
+    background-image:
+      radial-gradient(ellipse 80% 50% at 50% -10%, rgba(245, 155, 60, 0.06), transparent),
+      linear-gradient(180deg, #080b10 0%, #0a0e14 100%);
+    min-height: 100vh;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #25303f;
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #3a4759;
+  }
+  :focus-visible {
+    outline: 2px solid #f59b3c;
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-base-900/80 border border-base-700/60 rounded-xl2 shadow-panel backdrop-blur-sm;
+  }
+  .panel-header {
+    @apply flex items-center justify-between px-5 py-4 border-b border-base-700/50;
+  }
+  .stat-label {
+    @apply text-[11px] font-medium tracking-wide text-slate-400;
+  }
+  .data-num {
+    font-family: "IBM Plex Mono", ui-monospace, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+}
+
+.leaflet-container {
+  background: #0d1218 !important;
+  font-family: "Inter", sans-serif;
+}
+.leaflet-popup-content-wrapper {
+  background: #121924;
+  color: #e2e8f0;
+  border-radius: 10px;
+}
+.leaflet-popup-tip {
+  background: #121924;
+}
