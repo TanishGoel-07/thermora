@@ -1,170 +1,235 @@
-# Thermora
+# 🌡️ Thermora
 
 **AI-Powered Heatwave Early Warning & Human Thermal Stress Intelligence Platform**
 
-A full-stack climate intelligence platform: predicts heatwave risk, computes human thermal stress (HTSI), forecasts hospital surge, detects urban heat islands, and drives multi-channel alerting — built around a dynamic State → District → Ward geography hierarchy (India-scale, not hardcoded to one location).
+Thermora is a full-stack situational-awareness platform built for a Smart India Hackathon (SIH) problem statement on urban heatwave risk management. It ingests real-world weather data, computes scientifically grounded human thermal-stress indices, forecasts heatwaves with a machine-learning ensemble, predicts hospital surge load, and alerts citizens/authorities — all visualized through a live command-center dashboard.
 
 ---
 
-## Tech Stack
+## 🚀 What It Does
 
-| Layer | Technology |
+Thermora turns raw meteorological data into **actionable, ward-level heat-risk intelligence** for a city (seeded by default with Ghaziabad, Uttar Pradesh, India). It answers four core questions for disaster-management authorities and citizens:
+
+1. **How dangerous is the heat right now, and for whom?**
+   Computes a composite **Human Thermal Stress Index (HTSI, 0–100)** per ward from live weather (temperature, humidity, wind, solar radiation) blended with personal vulnerability factors (age, chronic illness, outdoor occupation).
+
+2. **What's coming in the next 5 days?**
+   An **ensemble ML model (XGBoost + Random Forest + LSTM)** forecasts heatwave probability, severity, and expected duration per ward.
+
+3. **Will hospitals be overwhelmed?**
+   Predicts expected heat-stroke cases, admissions, ICU demand, and bed-capacity utilization per hospital using an epidemiologically-inspired incidence model.
+
+4. **What should people do about it?**
+   Generates personalized health guidance/recommendations and triggers multi-channel alerts (SMS, email, push) automatically whenever a ward crosses a configurable risk threshold, plus surfaces nearby cooling centers on a map.
+
+### Key Features
+
+| Capability | Description |
 |---|---|
-| Frontend | React, TypeScript, TailwindCSS, React Query, Recharts, Leaflet |
-| Backend | FastAPI, Python 3.11 |
-| Database | PostgreSQL + PostGIS |
-| Cache | Redis (with automatic in-process fallback if unavailable) |
-| ML | XGBoost, Random Forest, LSTM (PyTorch, CPU) — ensembled |
-| Auth | JWT (python-jose) + bcrypt (passlib) |
-| Infra | Docker, Docker Compose |
-
-See **`UI_README.md`** for the frontend page-by-page breakdown.
+| 🌍 **Ward-level Heat Map (GIS)** | Interactive Leaflet map colored by live HTSI risk per ward, plus Urban Heat Island (UHI) hotspot overlay |
+| 🔥 **Thermal Stress Engine** | Computes Heat Index (NOAA Rothfusz), WBGT, and UTCI, then blends them into the composite HTSI score with a full contribution/driver breakdown |
+| 🤖 **Heatwave Forecast Ensemble** | XGBoost + Random Forest + LSTM models (weighted ensemble) predict 5-day heatwave probability/severity, with a physics-based heuristic fallback before models are trained |
+| 🚨 **Automated Alerting** | Background scheduler recomputes HTSI every 30 minutes and auto-dispatches SMS (Twilio), Email (SMTP), and Push (FCM) alerts to registered users when risk crosses threshold |
+| 🏥 **Hospital Surge Prediction** | Forecasts expected heat-stroke admissions/ICU load and capacity utilization per hospital |
+| ❄️ **Cooling Centers Finder** | Lists nearby cooling centers (with AC/water/24h availability) sorted by distance (Haversine) |
+| 💡 **Personalized Health Guidance** | General heat-safety tips + individualized recommendations based on age/health/occupation |
+| ⚙️ **Configurable Thresholds** | HTSI safe/caution/danger bands and alert thresholds tunable via environment variables |
+| 🛰️ **Real Weather Ingestion** | Pulls live daily meteorological data from NASA's free POWER API (no key required) |
 
 ---
 
-## Quick Start
+## 🏗️ Architecture
+
+```
+thermora/
+├── backend/                     # FastAPI (Python) backend
+│   ├── app/
+│   │   ├── main.py               # App entrypoint, routers, background scheduler
+│   │   ├── core/config.py        # Centralized settings (env-driven)
+│   │   ├── database.py           # SQLAlchemy engine/session + PostGIS init
+│   │   ├── models/               # SQLAlchemy ORM models (Ward, Weather, Alert, etc.)
+│   │   ├── schemas/               # Pydantic request/response schemas
+│   │   ├── routers/              # API route modules (dashboard, thermal, forecast, ...)
+│   │   ├── services/
+│   │   │   ├── thermal_stress.py  # HTSI / Heat Index / WBGT / UTCI engine
+│   │   │   ├── hospital_surge.py  # Surge / admissions / ICU prediction model
+│   │   │   ├── weather_ingestion.py # NASA POWER API client + ingestion
+│   │   │   └── ml/                # Ensemble ML: features, training, inference
+│   │   ├── alerts/                # Alert engine + SMS/Email/Push notifiers
+│   │   ├── gis/                   # GeoJSON utilities, haversine distance, risk colors
+│   │   └── seed/                  # Demo data seeder (wards, hospitals, weather history)
+│   ├── requirements.txt
+│   ├── Dockerfile / entrypoint.sh
+│
+├── frontend/                    # React + TypeScript + Vite SPA
+│   ├── src/
+│   │   ├── pages/                # Dashboard, HeatMap, Forecast, Alerts, Hospitals, ...
+│   │   ├── components/dashboard/ # KPI cards, HeatMap, Forecast/Risk panels, etc.
+│   │   ├── components/layout/    # Sidebar, Topbar
+│   │   ├── components/ui/        # Reusable UI primitives (button, badge, panel)
+│   │   ├── api/client.ts         # Typed REST client for the backend API
+│   │   ├── context/WardContext.tsx
+│   │   └── hooks/useThermoraData.ts
+│   ├── package.json / vite.config.ts / tailwind.config.js
+│
+└── docker-compose.yml            # Orchestrates postgres (PostGIS) + backend + frontend
+```
+
+### Tech Stack
+
+**Backend**
+- FastAPI, Uvicorn, Pydantic v2 / pydantic-settings
+- SQLAlchemy 2.0 + GeoAlchemy2 on PostgreSQL/PostGIS
+- APScheduler for periodic HTSI refresh jobs
+- ML: scikit-learn (Random Forest), XGBoost, PyTorch (LSTM), pandas/numpy
+- httpx for async NASA POWER API ingestion
+- python-jose / passlib for auth primitives
+- Twilio / SMTP / FCM adapters for alert delivery (safely no-op in dev if unconfigured)
+
+**Frontend**
+- React 18 + TypeScript + Vite
+- React Router, TanStack Query (data fetching/caching)
+- Tailwind CSS + Radix UI + class-variance-authority
+- Leaflet / React-Leaflet for the interactive heat map
+- Recharts for forecast/trend charts, lucide-react for icons
+
+**Infrastructure**
+- Docker Compose: PostGIS database, FastAPI backend, Nginx-served frontend build
+- NASA POWER API — free, public, no-API-key weather data source
+
+---
+
+## 🧠 How the Core Science Works
+
+### Human Thermal Stress Index (HTSI)
+`app/services/thermal_stress.py` combines three biometeorological indices:
+- **Heat Index** — NOAA/NWS Rothfusz regression
+- **WBGT (Wet Bulb Globe Temperature)** — simplified outdoor approximation incorporating solar load and wind cooling
+- **UTCI (Universal Thermal Climate Index)** — reduced polynomial approximation
+
+These are scaled and weighted (40% Heat Index / 35% WBGT / 25% UTCI) into a base score, then multiplied by a **personal vulnerability factor** (age, chronic conditions, outdoor occupation) to produce the final 0–100 HTSI score, categorized as **Safe → Caution → Danger → Extreme Danger**. A driver-breakdown explains exactly which factor (temperature, humidity, wind, solar radiation, vulnerability) contributes most to the current score.
+
+### Heatwave Forecast Ensemble
+`app/services/ml/` engineers rolling temperature/humidity features (3/7-day means, anomalies, day-of-year cyclic encoding) and:
+- Trains a **Random Forest** and **XGBoost** classifier on tabular features
+- Trains an **LSTM** on 7-day weather sequences
+- Blends predictions with weights `XGBoost 45% / RF 30% / LSTM 25%`, with a horizon-based confidence decay for the 5-day forecast
+- Falls back to a transparent logistic heuristic on temperature anomalies if models haven't been trained yet, so the API never breaks on a fresh install
+
+### Hospital Surge Model
+`app/services/hospital_surge.py` scales a baseline heat-stroke incidence rate (per 100k population) convexly with HTSI severity and ward vulnerability (elderly population %, impervious surface %) to estimate expected cases, admissions, ICU demand, and resulting capacity utilization/surge level.
+
+---
+
+## 🔌 API Overview
+
+All endpoints are served under the `/api` prefix (configurable via `API_PREFIX`).
+
+| Router | Prefix | Purpose |
+|---|---|---|
+| `dashboard` | `/api/dashboard` | KPIs, active alert, top-risk wards |
+| `thermal` | `/api/thermal` | Ad-hoc HTSI compute, per-ward latest/refresh/breakdown |
+| `forecast` | `/api/forecast` | 5-day heatwave forecast, latest ensemble prediction |
+| `alerts` | `/api/alerts` | List/get/dismiss alerts |
+| `gis` | `/api/gis` | Ward heatmap GeoJSON, UHI hotspots GeoJSON |
+| `hospitals` | `/api/hospitals` | Hospital list, surge predictions |
+| `cooling-centers` | `/api/cooling-centers` | Nearby cooling centers with distance sorting |
+| `weather` | `/api/weather` | Ward weather history, NASA POWER ingestion trigger |
+| `geo` | `/api/geo` | Districts / wards |
+| `health-guidance` | `/api/health-guidance` | General tips, personalized guidance |
+| `settings` | `/api/settings` | Risk thresholds, system info |
+
+Interactive API docs are available at `http://localhost:8000/docs` (Swagger UI) once the backend is running.
+
+---
+
+## 🖥️ Frontend Pages
+
+- **Dashboard** — command-center view: KPIs, active alert, heat map, top-risk wards, forecast panel, thermal-stress breakdown, risk drivers, hospital surge, cooling centers
+- **Heat Map** — full-screen ward-level risk map
+- **Forecast** — 5-day heatwave probability/severity trends
+- **Alerts** — alert history and management
+- **Health Guidance** — general + personalized heat-safety advice
+- **Hospitals** — hospital list and surge predictions
+- **Cooling Centers** — nearest cooling centers finder
+- **Emergency Planning** — response planning view
+- **Settings** — risk threshold configuration / system info
+
+---
+
+## ⚙️ Getting Started
+
+### Prerequisites
+- Docker & Docker Compose (recommended, easiest path), **or**
+- Python 3.11+ and Node.js 20+ for running services natively
+- PostgreSQL with the PostGIS extension if running the database yourself
+
+### Option A — Docker Compose (recommended)
 
 ```bash
 docker compose up --build
 ```
 
-First boot: waits for Postgres → seeds multi-state demo data → trains ML models (~2–5 min) → starts the API.
+This will:
+1. Start a PostGIS-enabled PostgreSQL instance
+2. Build and start the FastAPI backend (auto-seeds demo data, trains ML models, then starts Uvicorn)
+3. Build and serve the React frontend via Nginx
 
-| Service | URL |
-|---|---|
-| Dashboard | http://localhost:3000 |
-| API | http://localhost:8000 |
-| Swagger docs | http://localhost:8000/docs |
-| Health check | http://localhost:8000/health |
-| Postgres | `localhost:5432` (db/user/pass: `thermora`) |
-| Redis | `localhost:6379` |
+Once healthy:
+- Frontend: **http://localhost:3000**
+- Backend API: **http://localhost:8000/api**
+- Swagger docs: **http://localhost:8000/docs**
 
-**If you change the DB schema (models) after the first run**, `create_all()` will *not* migrate an existing database — wipe the volume:
+### Option B — Run Locally (without Docker)
+
+**Backend**
 ```bash
-docker compose down -v
-docker compose build --no-cache backend
-docker compose up
-```
-> There's no Alembic migration tooling yet — worth adding if the schema keeps evolving.
-
----
-
-## Geography Model (no hardcoded locations)
-
-```
-State (e.g. Uttar Pradesh, Delhi, Maharashtra)
-  └─ District (e.g. Ghaziabad, New Delhi, Mumbai)
-       └─ Ward (e.g. Sanjay Nagar, Rohini, Andheri)
+cd backend
+python -m venv venv
+venv\Scripts\activate            # Windows
+pip install -r requirements.txt
+copy .env.example .env           # adjust DATABASE_URL etc.
+python -m app.seed.seed_data     # seed demo data
+python -m app.services.ml.train  # train ML ensemble models
+uvicorn app.main:app --reload --port 8000
 ```
 
-Every dashboard panel is scoped by `ward_id` (and district/state where relevant) end-to-end — KPIs, alerts, forecasts, hospital surge, and cooling centers all refetch when the location selector changes, with no page reload.
+**Frontend**
+```bash
+cd frontend
+npm install
+npm run dev
+```
 
-Demo seed data spans 3 states, 5 districts, ~20 wards, each with hospitals, cooling centers, and 45 days of bootstrapped weather/thermal-stress history.
+The frontend defaults to `VITE_API_URL=http://localhost:8000/api` (see `frontend/vite.config.ts` / `.env`).
 
----
+### Configuration
 
-## Core Features
-
-### 1. Human Thermal Stress Index (HTSI)
-`app/services/thermal_stress.py` — computes:
-- **Heat Index** (NOAA/NWS Rothfusz regression)
-- **WBGT** (outdoor approximation)
-- **UTCI** (reduced polynomial approximation)
-- Composite **0–100 HTSI score** blending all three, adjusted by a personal-vulnerability multiplier (age, chronic conditions, occupation, gender, daily outdoor exposure hours)
-- Category: Safe / Caution / Danger / Extreme Danger
-- Auto-generated plain-language recommendations
-
-### 2. Citizen Heat Risk Engine
-`POST /api/citizen/risk-assessment` — personalized score + recommended actions + emergency guidance from age, gender, occupation, medical conditions, and daily outdoor exposure hours.
-
-### 3. Heatwave Prediction Ensemble
-`app/services/ml/` — XGBoost + Random Forest + LSTM, blended with weighted averaging. Trained on NASA POWER history (falls back to a physically-plausible synthetic generator when insufficient real history exists). Outputs probability, severity score/level, and estimated duration.
-
-### 4. Explainable AI
-`GET /api/explainability/ward/{id}/heatwave` — signed contributor breakdown (e.g. Temperature +40%, Humidity +20%, Wind −8%, Health Vulnerability +20%) derived from blended XGBoost/RF feature importances × each feature's deviation from a baseline.
-
-### 5. Weather Ingestion
-- **NASA POWER** (`app/services/weather_ingestion.py`) — historical daily data, no API key required
-- **OpenWeather** (`app/services/weather_openweather.py`) — forecast leg, requires `OPENWEATHER_API_KEY`; merged with NASA history before hitting the ensemble
-
-### 6. GIS
-- PostGIS geometry columns on District/Ward
-- Ward heatmap as GeoJSON, colored by live HTSI (green/yellow/orange/red)
-- Real boundary support: upload GeoJSON directly, or fetch from OpenStreetMap's Overpass API (`app/gis/osm_boundary.py`) — falls back to a synthetic square around the centroid when no real boundary is set
-
-### 7. Urban Heat Island Detection
-`app/services/satellite/uhi_pipeline.py` — NDVI, LST, and UHI-index computation with separate Sentinel-2 (NDVI-proxy) and Landsat-8 (thermal-band) code paths. Ships with a synthetic-band generator so the full pipeline runs end-to-end without a satellite data subscription; `load_raster_bands()` is the real GeoTIFF entry point for production.
-
-### 8. Hospital Surge Prediction
-`app/services/hospital_surge.py` — expected heat-stroke cases, admissions, ICU requirement, OPD demand, projected bed occupancy, and a composite emergency-resource-strain score.
-
-### 9. Cooling Center Intelligence
-`GET /api/cooling-centers/recommend?lat=&lon=` — automatic best-center recommendation balancing distance/ETA against live capacity and amenities (not just nearest-door).
-
-### 10. Smart Alerts
-`app/alerts/` — SMS, email, push, and WhatsApp (via Twilio), triggered automatically when HTSI crosses the configured threshold. Dry-run logging when provider credentials aren't configured.
-
-### 11. Government Officer Dashboard
-`GET /api/government/district/{id}/overview`, `/api/government/state/{id}/overview` — role-gated (District/State Officer, Super Admin) aggregation: heatwave severity, high-risk wards, vulnerable population estimate, hospital/cooling capacity, emergency recommendations.
-
-### 12. Role-Based Access Control
-JWT auth (`app/core/security.py`, `app/routers/auth.py`). Roles: `citizen`, `hospital_admin`, `district_officer`, `state_officer`, `super_admin`.
-
-### 13. Scalability
-- Redis caching (`app/core/cache.py`) on hot endpoints (KPIs, ward heatmap, geography lists), with automatic in-process fallback if Redis is unreachable
-- DB indexes on `ward_id`/`district_id`/`state_id` foreign keys
-- APScheduler background job refreshing HTSI for all wards every 30 minutes
-
-### 14. PWA
-`frontend/public/manifest.json` + `sw.js` — installable, offline app-shell caching, push notification handling.
+Backend configuration is environment-driven (`backend/.env.example` → `backend/app/core/config.py`), including:
+- `DATABASE_URL` — PostgreSQL/PostGIS connection string
+- `NASA_POWER_BASE_URL` / `NASA_POWER_PARAMETERS` — weather data source
+- `DEFAULT_LAT` / `DEFAULT_LON` — default AOI used to seed the demo district (Ghaziabad by default)
+- `HTSI_SAFE_MAX` / `HTSI_CAUTION_MAX` / `HTSI_DANGER_MAX` / `ALERT_RISK_THRESHOLD` — risk thresholds
+- `SMTP_*`, `TWILIO_*`, `FCM_SERVER_KEY` — alert delivery credentials (optional; notifiers safely no-op/log in dev if unset)
+- `SECRET_KEY`, `ACCESS_TOKEN_EXPIRE_MINUTES` — auth settings
 
 ---
 
-## Database Schema
+## 🗂️ Data Model Highlights
 
-`users, states, districts, wards, uhi_hotspots, weather_observations, thermal_stress_records, heatwave_predictions, hospitals, hospital_predictions, cooling_centers, alerts, alert_deliveries`
-
----
-
-## API Surface (prefix `/api`)
-
-| Router | Key endpoints |
-|---|---|
-| `/geo` | `states`, `districts`, `wards` (all filterable by parent) |
-| `/dashboard` | `kpis?ward_id=`, `active-alert?ward_id=`, `top-risk-wards` |
-| `/thermal` | `compute`, `ward/{id}/latest`, `ward/{id}/refresh`, `ward/{id}/breakdown` |
-| `/forecast` | `ward/{id}/5-day`, `ward/{id}/latest-ensemble` |
-| `/explainability` | `ward/{id}/heatwave`, `ward/{id}/htsi` |
-| `/citizen` | `risk-assessment` |
-| `/health-guidance` | `general-tips`, `personalized` |
-| `/hospitals` | list, `surge-predictions` |
-| `/cooling-centers` | list, `recommend` |
-| `/gis` | `wards/heatmap`, `hotspots`, boundary upload/OSM-fetch |
-| `/uhi` | `ward/{id}/analyze`, `ward/{id}/history` |
-| `/alerts` | list, `{id}/dismiss` |
-| `/weather` | `ward/{id}`, `ward/{id}/ingest` |
-| `/government` | `district/{id}/overview`, `state/{id}/overview` (role-gated) |
-| `/auth` | `register`, `login`, `me` |
-| `/settings` | `thresholds`, `system-info` |
-
-Full interactive reference at `/docs` once running.
+`backend/app/models/` defines: `District`, `Ward`, `UHIHotspot`, `WeatherObservation`, `ThermalStressRecord`, `HeatwavePrediction`, `Hospital`, `HospitalPrediction`, `CoolingCenter`, `User`, `Alert`, `AlertDelivery` — capturing the full pipeline from raw weather through computed risk, forecasts, hospital impact, and alert delivery/audit trail.
 
 ---
 
-## Environment Variables
+## 📌 Notes / Limitations
 
-See `backend/.env.example`. Notable ones:
-- `OPENWEATHER_API_KEY` — enables the forecast leg of the weather pipeline (works without it, falls back to history-only)
-- `TWILIO_ACCOUNT_SID` / `TWILIO_AUTH_TOKEN` / `TWILIO_FROM_NUMBER` / `TWILIO_WHATSAPP_FROM` — enables real SMS/WhatsApp (dry-run logged otherwise)
-- `SMTP_*` — enables real email (dry-run logged otherwise)
-- `SECRET_KEY` — **change this before any real deployment**
+- The demo dataset (seeded via `app/seed/seed_data.py`) is centered on **Ghaziabad, India** with synthetic-but-plausible 45-day weather history bootstrapped per ward; live data can be pulled per-ward via the `/api/weather/ward/{id}/ingest` endpoint (NASA POWER).
+- Ward boundaries are approximated as simple squares around each ward's centroid (`gis/geojson_utils.py`) since no authoritative shapefile is bundled — swap in real GeoJSON boundaries for production use.
+- The hospital surge model is an explainable, epidemiologically-inspired heuristic rather than a model calibrated on real admissions data — treat outputs as directional estimates.
+- SMS/Email/Push notifiers no-op with a log line when their provider credentials aren't configured, so the system runs fully offline/demo-friendly out of the box.
 
 ---
 
-## Known Gaps / Honest Limitations
+## 📄 License
 
-- **No Alembic migrations** — schema changes require wiping the dev database (`docker compose down -v`). Worth adding if you keep iterating on models.
-- **OpenWeather / OSM Overpass** calls require real network access and, for OpenWeather, an API key — untested against live services in the environment this was built in.
-- **UHI satellite pipeline** defaults to synthetic bands; real Sentinel-2/Landsat-8 ingestion needs `rasterio` + actual scene files via `load_raster_bands()`.
-- **Frontend was never `npm run build`'d** in the environment this was built in (no network access there) — verified by manual review, not a compiler. Run it yourself before deploying to catch anything missed.
-- **Government dashboard login** is a minimal email/password form on the page itself — fine for a demo, but a real deployment would want a proper auth flow (refresh tokens, session handling, etc.) rather than a token in `localStorage`.
+This project was built for the Smart India Hackathon (SIH). Add your license of choice here.
